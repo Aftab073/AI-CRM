@@ -1,35 +1,36 @@
 import React, { useState } from 'react';
+// Import Redux hooks and actions
+import { useDispatch, useSelector } from 'react-redux';
+import { updateField, resetForm, selectForm, populateForm } from './features/interactionForm/interactionFormSlice';
 
 const LogInteractionScreen = () => {
-  const initialFormState = {
-    hcp_name: '',
-    interaction_type: 'Scheduled Visit',
-    interaction_date: new Date().toISOString().split('T')[0],
-    interaction_time: '',
-    attendees: '',
-    topics_discussed: '',
-    materials_shared: '',
-    observed_sentiment: 'Neutral',
-    outcomes: '',
-    follow_up_actions: '',
-  };
+  // --- STATE MANAGEMENT ---
+  // The form's state is now read directly from the Redux store
+  const formState = useSelector(selectForm);
+  // The dispatch function is used to send actions to the Redux store
+  const dispatch = useDispatch();
 
-  const [formState, setFormState] = useState(initialFormState);
+  // Local component state is still used for UI elements not part of the form, like the chat
   const [chatInput, setChatInput] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
+
+  // --- HANDLER FUNCTIONS ---
+
+  // Dispatches an action to update a single field in the Redux store
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormState((prevState) => ({ ...prevState, [name]: value }));
+    dispatch(updateField({ name: e.target.name, value: e.target.value }));
   };
 
+  // Handles the AI submission
   const handleChatSubmit = async () => {
     if (!chatInput.trim()) return;
     const userMessage = { sender: 'user', text: chatInput };
     setChatHistory((prev) => [...prev, userMessage]);
     setIsLoading(true);
     setChatInput('');
+
     try {
       const response = await fetch('http://localhost:8000/api/ai_extract', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: chatInput }),
@@ -39,11 +40,10 @@ const LogInteractionScreen = () => {
       }
       const extractedData = await response.json();
       setChatHistory((prev) => [...prev, { sender: 'bot', text: 'Details extracted. Please review the form and save.' }]);
-      const newState = { ...initialFormState, interaction_date: formState.interaction_date };
-      for (const key in extractedData) {
-        if (extractedData[key] !== null && extractedData[key] !== undefined) { newState[key] = extractedData[key]; }
-      }
-      setFormState(newState);
+      
+      // Dispatch an action to populate the form in the Redux store
+      dispatch(populateForm(extractedData));
+
     } catch (error) {
       setChatHistory((prev) => [...prev, { sender: 'bot', text: `Error: ${error.message}` }]);
     } finally {
@@ -51,6 +51,7 @@ const LogInteractionScreen = () => {
     }
   };
 
+  // Handles the final form submission to the database
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -71,8 +72,11 @@ const LogInteractionScreen = () => {
       }
       const savedInteraction = await response.json();
       alert(`Success! Interaction ID ${savedInteraction.id} has been saved.`);
-      setFormState(initialFormState);
+      
+      // Dispatch an action to reset the form in the Redux store
+      dispatch(resetForm());
       setChatHistory([]);
+
     } catch (error) {
       alert(`Save failed: ${error.message}`);
     } finally {
@@ -97,7 +101,7 @@ const LogInteractionScreen = () => {
         {/* Responsive Grid for the two-column layout */}
         <main className="grid grid-cols-1 lg:grid-cols-5 gap-8">
           
-          {/* Form Container - now taking up 3/5 of the width on large screens */}
+          {/* Form Container */}
           <div className="lg:col-span-3 bg-white rounded-2xl shadow-xl p-6 lg:p-8">
             <h2 className="text-xl font-semibold text-slate-900 border-b border-slate-200 pb-4 mb-6">Interaction Details (Review & Confirm)</h2>
             <form onSubmit={handleFormSubmit} className="space-y-6">
@@ -119,7 +123,7 @@ const LogInteractionScreen = () => {
             </form>
           </div>
 
-          {/* AI Assistant Container - now taking up 2/5 of the width on large screens */}
+          {/* AI Assistant Container */}
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl p-6 lg:p-8 flex flex-col">
             <h2 className="text-xl font-semibold text-slate-900 border-b border-slate-200 pb-4 mb-6">AI Assistant</h2>
             <div className="flex-grow bg-slate-50 rounded-lg p-4 overflow-y-auto h-96 space-y-4">
