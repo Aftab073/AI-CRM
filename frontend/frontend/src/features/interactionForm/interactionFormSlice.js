@@ -24,14 +24,19 @@ export const interactionFormSlice = createSlice({
     resetForm: (state) => {
       return initialState;
     },
+    // --- THIS IS THE DEFINITIVE, CORRECTED LOGIC ---
     populateForm: (state, action) => {
-      const { interaction_date, ...rest } = action.payload;
-      // Overwrite everything from AI except date, which we preserve from user's last setting
-      return { ...state, ...rest };
+      // The `action.payload` is the complete data object from the AI.
+      // This simple logic correctly merges the AI data over the initial state,
+      // ensuring all fields are populated correctly.
+      const newState = { ...initialState, ...action.payload };
+      return newState;
     },
   },
 });
 
 export const { updateField, resetForm, populateForm } = interactionFormSlice.actions;
+
 export const selectForm = (state) => state.interactionForm;
+
 export default interactionFormSlice.reducer;

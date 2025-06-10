@@ -1,29 +1,18 @@
 import React, { useState } from 'react';
-// Import Redux hooks and actions
 import { useDispatch, useSelector } from 'react-redux';
 import { updateField, resetForm, selectForm, populateForm } from './features/interactionForm/interactionFormSlice';
 
 const LogInteractionScreen = () => {
-  // --- STATE MANAGEMENT ---
-  // The form's state is now read directly from the Redux store
   const formState = useSelector(selectForm);
-  // The dispatch function is used to send actions to the Redux store
   const dispatch = useDispatch();
-
-  // Local component state is still used for UI elements not part of the form, like the chat
   const [chatInput, setChatInput] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-
-  // --- HANDLER FUNCTIONS ---
-
-  // Dispatches an action to update a single field in the Redux store
   const handleInputChange = (e) => {
     dispatch(updateField({ name: e.target.name, value: e.target.value }));
   };
 
-  // Handles the AI submission
   const handleChatSubmit = async () => {
     if (!chatInput.trim()) return;
     const userMessage = { sender: 'user', text: chatInput };
@@ -32,18 +21,26 @@ const LogInteractionScreen = () => {
     setChatInput('');
 
     try {
-      const response = await fetch('http://localhost:8000/api/ai_extract', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: chatInput }),
+      const response = await fetch('http://localhost:8000/api/agent/invoke', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: chatInput }),
       });
-      if (!response.ok) {
-        const errorData = await response.json(); throw new Error(errorData.detail || 'AI processing failed.');
-      }
-      const extractedData = await response.json();
-      setChatHistory((prev) => [...prev, { sender: 'bot', text: 'Details extracted. Please review the form and save.' }]);
-      
-      // Dispatch an action to populate the form in the Redux store
-      dispatch(populateForm(extractedData));
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Agent processing failed.');
+      }
+      
+      const agentResponse = await response.json();
+
+      if (agentResponse.response_type === 'form_data') {
+        setChatHistory((prev) => [...prev, { sender: 'bot', text: 'Details extracted. Please review the form below and save.' }]);
+        dispatch(populateForm(agentResponse.data));
+      } else {
+        setChatHistory((prev) => [...prev, { sender: 'bot', text: agentResponse.data }]);
+      }
+      
     } catch (error) {
       setChatHistory((prev) => [...prev, { sender: 'bot', text: `Error: ${error.message}` }]);
     } finally {
@@ -51,7 +48,6 @@ const LogInteractionScreen = () => {
     }
   };
 
-  // Handles the final form submission to the database
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -65,18 +61,18 @@ const LogInteractionScreen = () => {
     }
     try {
       const response = await fetch('http://localhost:8000/api/interactions', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       });
       if (!response.ok) {
-        const errorData = await response.json(); throw new Error(`(${response.status}) ${errorData.detail}` || 'Failed to save interaction.');
+        const errorData = await response.json();
+        throw new Error(`(${response.status}) ${errorData.detail}` || 'Failed to save interaction.');
       }
       const savedInteraction = await response.json();
       alert(`Success! Interaction ID ${savedInteraction.id} has been saved.`);
-      
-      // Dispatch an action to reset the form in the Redux store
       dispatch(resetForm());
       setChatHistory([]);
-
     } catch (error) {
       alert(`Save failed: ${error.message}`);
     } finally {
@@ -84,24 +80,20 @@ const LogInteractionScreen = () => {
     }
   };
 
-  // Reusable Tailwind classes for a consistent, professional look
   const inputClasses = "block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition";
   const labelClasses = "block text-sm font-medium text-slate-700 mb-1";
 
   return (
-    // Applying the Inter font via `font-sans` and a soft background color
     <div className="bg-slate-50 min-h-screen font-sans">
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         
         <header className="text-center mb-10">
           <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight">Log HCP Interaction</h1>
-          <p className="mt-2 text-base sm:text-lg text-slate-600">Use the AI Assistant to pre-fill the form, then review and save.</p>
+          <p className="mt-2 text-base sm:text-lg text-slate-600">Use the AI Assistant to log new interactions or query existing data.</p>
         </header>
         
-        {/* Responsive Grid for the two-column layout */}
         <main className="grid grid-cols-1 lg:grid-cols-5 gap-8">
           
-          {/* Form Container */}
           <div className="lg:col-span-3 bg-white rounded-2xl shadow-xl p-6 lg:p-8">
             <h2 className="text-xl font-semibold text-slate-900 border-b border-slate-200 pb-4 mb-6">Interaction Details (Review & Confirm)</h2>
             <form onSubmit={handleFormSubmit} className="space-y-6">
@@ -123,22 +115,21 @@ const LogInteractionScreen = () => {
             </form>
           </div>
 
-          {/* AI Assistant Container */}
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl p-6 lg:p-8 flex flex-col">
             <h2 className="text-xl font-semibold text-slate-900 border-b border-slate-200 pb-4 mb-6">AI Assistant</h2>
             <div className="flex-grow bg-slate-50 rounded-lg p-4 overflow-y-auto h-96 space-y-4">
-              <div className="p-3 rounded-lg bg-indigo-100 text-indigo-800 text-sm shadow-sm">Log your interaction in one go. The form will be populated for your review.</div>
+              <div className="p-3 rounded-lg bg-indigo-100 text-indigo-800 text-sm shadow-sm">Enter a new interaction note or ask a question about existing data.</div>
               {chatHistory.map((msg, index) => (
                 <div key={index} className={`w-fit max-w-xs md:max-w-sm rounded-xl px-4 py-2 shadow-sm ${msg.sender === 'user' ? 'bg-indigo-600 text-white ml-auto' : 'bg-slate-200 text-slate-800'}`}>
-                  {msg.text}
+                  <pre className="whitespace-pre-wrap font-sans">{msg.text}</pre>
                 </div>
               ))}
               {isLoading && <div className="p-3"><div className="w-fit max-w-sm rounded-xl px-4 py-3 bg-slate-200 text-slate-800 flex items-center space-x-2"> <div className="w-2 h-2 bg-slate-500 rounded-full animate-pulse"></div> <div className="w-2 h-2 bg-slate-500 rounded-full animate-pulse [animation-delay:0.2s]"></div> <div className="w-2 h-2 bg-slate-500 rounded-full animate-pulse [animation-delay:0.4s]"></div> </div></div>}
             </div>
             <div className="mt-6 flex gap-3">
-              <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleChatSubmit()} placeholder="Log interaction details here..." disabled={isLoading} className={`${inputClasses} flex-grow`}/>
+              <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleChatSubmit()} placeholder="Log notes or ask a question..." disabled={isLoading} className={`${inputClasses} flex-grow`}/>
               <button onClick={handleChatSubmit} disabled={isLoading || !chatInput.trim()} className="bg-indigo-600 text-white font-bold py-2 px-5 rounded-lg shadow-md hover:bg-indigo-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition-all duration-300">
-                Log
+                Send
               </button>
             </div>
           </div>
