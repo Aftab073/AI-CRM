@@ -20,11 +20,19 @@ const LogInteractionScreen = () => {
     setIsLoading(true);
     setChatInput('');
 
+    const payload = {
+      text: chatInput,
+      context: {
+        // Only send the ID if it exists (i.e., a form is loaded)
+        current_interaction_id: formState.id || null
+      }
+    };
+
     try {
       const response = await fetch('http://localhost:8000/api/agent/invoke', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: chatInput }),
+        body: JSON.stringify(payload), // Send the new payload
       });
 
       if (!response.ok) {
@@ -35,7 +43,7 @@ const LogInteractionScreen = () => {
       const agentResponse = await response.json();
 
       if (agentResponse.response_type === 'form_data') {
-        setChatHistory((prev) => [...prev, { sender: 'bot', text: 'Details extracted. Please review the form below and save.' }]);
+        setChatHistory((prev) => [...prev, { sender: 'bot', text: 'Interaction data has been loaded into the form for your review.'  }]);
         dispatch(populateForm(agentResponse.data));
       } else {
         setChatHistory((prev) => [...prev, { sender: 'bot', text: agentResponse.data }]);
