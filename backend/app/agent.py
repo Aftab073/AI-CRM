@@ -7,9 +7,12 @@ from .schemas import LogInteractionToolArgs, EditInteractionToolArgs
 
 # --- 1. MOCK DATA ---
 MOCK_CLINICAL_DATA = {
-    "valcor": "Valcor (VAL-123) Phase 3 trials showed a 45% reduction...",
-    "aether-d": "Aether-D is a combination therapy...",
-    "solara": "Solara is an immunomodulator..."
+    "valcor": "Valcor (VAL-123) Phase 3 trials showed a 45% reduction in primary endpoints vs. placebo...", 
+    "aether-d": "Aether-D is a combination therapy approved for type-2 diabetes...", 
+    "solara": "Solara is an immunomodulator currently in Phase 2 for treating rheumatoid arthritis...",
+    "paracetamol": "Paracetamol is a widely used analgesic and antipyretic that provides effective relief from mild to moderate pain and fever. It is available over the counter and recommended by WHO as an essential medicine.",
+    "dolo-650": "Dolo 650 is a high-strength formulation of paracetamol (650 mg) used for managing fever and body aches. Clinically trusted in India, it is frequently prescribed during viral infections and post-vaccination symptoms."
+
 }
 
 # --- 2. TOOL DEFINITIONS ---
